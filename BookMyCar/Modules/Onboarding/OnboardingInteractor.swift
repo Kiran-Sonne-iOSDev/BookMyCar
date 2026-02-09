@@ -21,9 +21,10 @@ class OnboardingInteractor: OnboardingInteractorProtocol {
     func fetchOnboardingData() {
         // In real app, this might come from API or database
         // For now, we just create it here
-        let data = OnboardingData(
+        let data = OnboardingModel(
+            imageName: "car.fill",
             title: "TAXI SERVICE",
-            description: "Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit"
+            description: "Choose from a wide range of cars and book them instantly at the best prices."
         )
         
         // Send data back to presenter

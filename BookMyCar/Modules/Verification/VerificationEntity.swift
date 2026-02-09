@@ -6,3 +6,8 @@
 //
 
 import Foundation
+struct OTPModel {
+    let title: String
+    let description: String
+    let otpLength: Int
+}

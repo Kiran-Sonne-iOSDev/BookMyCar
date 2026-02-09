@@ -33,6 +33,8 @@ class OnboardingRouter {
     
     // Navigate to home screen
     func navigateToHome() {
-        onComplete?()
+        let verificationView = VerificationBuilder.build()
+                UIApplication.shared.windows.first?.rootViewController =
+                    UIHostingController(rootView: verificationView)
     }
 }

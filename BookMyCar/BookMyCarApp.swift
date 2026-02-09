@@ -10,23 +10,19 @@ import SwiftData
 
 @main
 struct BookMyCarApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
+    @State private var isOnboardingComplete = false
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if isOnboardingComplete {
+                // Home screen after onboarding
+                Home()
+            }else {
+                // Show onboarding
+                OnboardingRouter.createModule {
+                    isOnboardingComplete = true
+                }
+            }
         }
-        .modelContainer(sharedModelContainer)
+       // .modelContainer(sharedModelContainer)
     }
 }

@@ -16,7 +16,7 @@ class OnboardingPresenter: ObservableObject {
     // Data that View will display
     @Published var title: String = ""
     @Published var description: String = ""
-    
+    @Published var imageName: String = ""
     // MARK: - Called by View
     
     // When view appears
@@ -35,9 +35,12 @@ class OnboardingPresenter: ObservableObject {
     // MARK: - Called by Interactor
     
     // When interactor fetches data
-    func didFetchData(_ data: OnboardingData) {
+    func didFetchData(_ data: OnboardingModel) {
         // Update the view with data
+        self.imageName = data.imageName
         self.title = data.title
         self.description = data.description
+        
+        
     }
 }
