@@ -2,27 +2,45 @@
 //  HomeRouter.swift
 //  BookMyCar
 //
-//  Created by Kiran Sonne on 07/02/26.
+//  Created by Kiran Sonne on 12/02/26.
 //
 
 import Foundation
 import SwiftUI
-final class HomeRouter: HomeRouterProtocol {
-    
-    func navigateToBookingDetails() {
-        let bookingDetailsView = BookingDetailsBuilder.build(bookingId: "BK\(Int.random(in: 100000...999999))")
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
-            let hostingController = UIHostingController(rootView: bookingDetailsView)
-            
-            // If you're using NavigationView, push it
-            if let navigationController = window.rootViewController as? UINavigationController {
-                navigationController.pushViewController(hostingController, animated: true)
-            } else {
-                // Otherwise, present it
-                window.rootViewController?.present(hostingController, animated: true)
-            }
-        }
-    }
+
+// MARK: - Home Router Protocol
+protocol HomeRouterProtocol {
+    func navigateToRideConfirmation(booking: RideBookingModel)
+    func navigateToRideTracking()
 }
+
+// MARK: - Home Router
+class HomeRouter: HomeRouterProtocol {
+    
+ 
+    // MARK: - Navigation Methods
+    func navigateToRideConfirmation(booking: RideBookingModel) {
+        print("🧭 Navigate to Ride Confirmation")
+    }
+
+    func navigateToRideTracking() {
+        print("🧭 Navigate to Ride Tracking")
+        // TODO: Implement navigation
+    }
+    
+    // MARK: - Static Factory
+    static func createModule() -> some View {
+            let interactor = HomeInteractor()
+            let router = HomeRouter()
+            let service = LocationSearchService()
+            let presenter = HomePresenter(
+                interactor: interactor,
+                router: router,
+                locationSearchService: service
+            )
+
+            return HomeView(presenter: presenter)
+        }
+
+}
+
