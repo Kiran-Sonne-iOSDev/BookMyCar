@@ -97,9 +97,22 @@ struct FavoritesView: View {
                             timeString: presenter.formatTime(ride.bookingDate),
                             onToggleFavorite: {
                                 presenter.toggleFavorite(for: ride)
+                            },
+                            onToggleTrash: {
+                                presenter.deleteRide(ride)
                             }
                         )
                     }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            withAnimation {
+                                presenter.deleteRide(ride)
+                            }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                
                 }
             }
             .padding(.horizontal, 20)

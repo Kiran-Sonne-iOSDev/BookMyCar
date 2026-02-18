@@ -7,22 +7,58 @@
 
 import SwiftUI
 import SwiftData
-
 @main
 struct BookMyCarApp: App {
-    @State private var isOnboardingComplete = false
+    
+    @State private var appState: AppState = .onboarding
+    @State private var session = UserSession.shared
+  
     var body: some Scene {
         WindowGroup {
-            if isOnboardingComplete {
-                // Home screen after onboarding
-                Home()
-            }else {
-                // Show onboarding
+            
+            switch appState {
+                
+            case .onboarding:
                 OnboardingRouter.createModule {
-                    isOnboardingComplete = true
+                    appState = .welcome
                 }
+            case .welcome:
+                WelcomeRouter.createModule(
+                    onLoginSuccess: {
+                         appState = .verification
+                    },
+                    onRegisterSuccess: {
+                         appState = .verification
+                    }
+                )
+                
+            case .verification:
+                VerificationBuilder.build {
+                      appState = .home
+                }
+                
+            case .home:
+                HomeRouter.createModule()
+                    .environment(\.appStateBinding, $appState) 
             }
         }
-       // .modelContainer(sharedModelContainer)
+        .modelContainer(for: [UserEntity.self, RideBookingModel.self, PaymentCardModel.self])
+    }
+}
+enum AppState {
+    case onboarding
+    case welcome
+    case verification
+    case home
+}
+ 
+private struct AppStateKey: EnvironmentKey {
+    static let defaultValue: Binding<AppState> = .constant(.home)
+}
+
+extension EnvironmentValues {
+    var appStateBinding: Binding<AppState> {
+        get { self[AppStateKey.self] }
+        set { self[AppStateKey.self] = newValue }
     }
 }

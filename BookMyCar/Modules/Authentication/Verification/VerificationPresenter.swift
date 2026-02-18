@@ -15,6 +15,8 @@ final class VerificationPresenter: ObservableObject {
     @Published var description: String = ""
     @Published var otpDigits: [String] = Array(repeating: "", count: 4)
     @Published var errorMessage: String?
+    @Published var isLoading: Bool = false
+
 
     private let interactor: VerificationInteractorProtocol
     private let router: VerificationRouterProtocol
@@ -41,12 +43,21 @@ extension VerificationPresenter: VerificationPresenterProtocol {
     
     func verifyOTP() {
         let otp = otpDigits.joined()
+        
         if otp == "1234" {
-            router.navigateToHome()
+            isLoading = true
+            // 3 seconds delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                guard let self = self else { return }
+                self.isLoading = false
+                self.router.navigateToHome()
+            }
         } else {
             errorMessage = "Invalid OTP"
+            otpDigits = Array(repeating: "", count: 4)
         }
     }
+
 
 
 }

@@ -104,11 +104,15 @@ struct MyRidesView: View {
                                         timeString: presenter.formatTime(ride.bookingDate),
                                         onToggleFavorite: {
                                             presenter.toggleFavorite(for: ride)
+                                        },
+                                        onToggleTrash: {
+                                            presenter.deleteRide(ride)
                                         }
-                                    )                                }
+                                    )
+                                }
+                            }
                             }
                         }
-                    }
                 }
             }
             .padding(.horizontal, 20)

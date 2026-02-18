@@ -28,6 +28,19 @@ class FavoritesPresenter: ObservableObject {
             print("❌ Failed to fetch favorites: \(error)")
         }
     }
+    func deleteRide(_ ride: RideBookingModel) {
+        guard let context = modelContext else { return }
+        
+        context.delete(ride)
+        
+        do {
+            try context.save()
+            print("✅ Ride deleted successfully")
+            fetchFavorites() // Refresh the list
+        } catch {
+            print("❌ Failed to delete ride: \(error)")
+        }
+    }
     
     func toggleFavorite(for ride: RideBookingModel) {
         guard let context = modelContext else { return }

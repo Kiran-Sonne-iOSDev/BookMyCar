@@ -35,16 +35,32 @@ struct ContentView: View {
                     if model.isAwaitingResponse {
                         if let last = model.session.transcript.last {
                             if case .prompt = last {
-                                Text("Thinking...").bold()
-                                    .opacity(model.isThinking ? 0.5 : 1)
-                                    .padding(.leading)
-                                    .offset(y: 15)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .onAppear {
-                                        withAnimation(.linear(duration: 1).repeatForever(autoreverses: true)){
-                                            model.isThinking.toggle()
+                                HStack(spacing: 12) {
+                                    HStack(spacing: 4) {
+                                        ForEach(0..<3) { index in
+                                            Circle()
+                                                .fill(Color.gray)
+                                                .frame(width: 8, height: 8)
+                                                .offset(y: model.isThinking ? -5 : 0)
+                                                .animation(
+                                                    .easeInOut(duration: 0.5)
+                                                        .repeatForever()
+                                                        .delay(Double(index) * 0.15),
+                                                    value: model.isThinking
+                                                )
                                         }
                                     }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.gray.opacity(0.2))
+                                    .cornerRadius(12)
+                                }
+                                .padding(.leading)
+                                .offset(y: 15)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .onAppear {
+                                    model.isThinking = true
+                                }
                             }
                         }
                     }

@@ -6,9 +6,6 @@
 //
 
 import SwiftUI
-
- 
-
 final class VerificationRouter: VerificationRouterProtocol {
     
     private let onNavigateToHome: () -> Void

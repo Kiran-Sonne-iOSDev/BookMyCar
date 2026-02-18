@@ -30,6 +30,19 @@ class MyRidesPresenter: ObservableObject {
         }
     }
     
+    func deleteRide(_ ride: RideBookingModel) {
+        guard let context = modelContext else { return }
+        
+        context.delete(ride)
+        
+        do {
+            try context.save()
+            print("✅ Ride deleted successfully")
+            fetchRides() // Refresh the list
+        } catch {
+            print("❌ Failed to delete ride: \(error)")
+        }
+    }
     private func groupRidesByDate(_ rides: [RideBookingModel]) {
         let calendar = Calendar.current
         

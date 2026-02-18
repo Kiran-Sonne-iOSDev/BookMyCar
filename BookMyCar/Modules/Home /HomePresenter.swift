@@ -44,7 +44,9 @@ protocol HomePresenterProtocol: ObservableObject {
     @Published var destinationQuery = ""
     @Published var pickupSuggestions: [MKMapItem] = []
     @Published var destinationSuggestions: [MKMapItem] = []
-     @Published var navigateToConfirmation: RideBookingModel?
+    @Published var navigateToConfirmation: RideBookingModel?
+    @Published var showPaymentSelection = false
+    @Published var pendingBooking: RideBookingModel?
 
 
     // MARK: - Computed Properties
@@ -83,6 +85,13 @@ protocol HomePresenterProtocol: ObservableObject {
         observeLocationChanges()
     }
     
+      func completeBookingWithoutCard(booking: RideBookingModel) {
+         // The booking is already saved in PaymentSelectionView
+         // Just navigate to confirmation
+         navigateToConfirmation = booking
+         pendingBooking = nil
+         showPaymentSelection = false
+     }
     // MARK: - Load Nearby Cars
     func loadNearbyCars() {
         interactor.getNearbyCars(around: mapRegion.center)
@@ -232,49 +241,63 @@ protocol HomePresenterProtocol: ObservableObject {
     }
     
     // MARK: - Book Ride
+    
      func bookRide() {
          guard let pickup = pickupLocation,
                let destination = destinationLocation,
                let carType = selectedCarType else {
-             print("❌ Select pickup, destination, and car type first")
+             print("❌ Missing required data for booking")
              return
          }
          
-         print("✅ Booking ride:")
-         print("   Pickup: \(pickup.title)")
-         print("   Destination: \(destination.title)")
-         print("   Car Type: \(carType.name)")
-         print("   Price: \(estimatedPrice)")
-         let driverName = "Paul"
-         let driverPhone = "9876543210"
-         let driverEmail = "paul.driver@mail.com"
+         // Generate random driver info
+         let drivers = [
+             ("John Smith", "+1 234-567-8901", "john.smith@driver.com"),
+             ("Sarah Johnson", "+1 234-567-8902", "sarah.j@driver.com"),
+             ("Mike Wilson", "+1 234-567-8903", "mike.w@driver.com"),
+             ("Emma Davis", "+1 234-567-8904", "emma.d@driver.com")
+         ]
+         let randomDriver = drivers.randomElement()!
+         
+         let booking = RideBookingModel(
+            pickupTitle: pickup.title ?? "Unknown",
+            pickupLatitude: pickup.coordinate.latitude,
+             pickupLongitude: pickup.coordinate.longitude,
+             destinationTitle: destination.title ?? "Unknown",
+             destinationLatitude: destination.coordinate.latitude,
+             destinationLongitude: destination.coordinate.longitude,
+             carTypeName: carType.name,
+             estimatedDistance: estimatedDistance,
+             estimatedTime: estimatedTime,
+             estimatedPrice: estimatedPrice,
+             driverName: randomDriver.0,
+             driverPhone: randomDriver.1,
+             driverEmail: randomDriver.2
+         )
+         
+         // Store pending booking and show payment selection
+         pendingBooking = booking
+         showPaymentSelection = true
+     }
 
-         // ✅ NEW: Save Ride
-         if let context = modelContext {
-             let booking = RideBookingModel(
-                 pickupTitle: pickup.title,
-                 pickupLatitude: pickup.coordinate.latitude,
-                 pickupLongitude: pickup.coordinate.longitude,
-                 destinationTitle: destination.title,
-                 destinationLatitude: destination.coordinate.latitude,
-                 destinationLongitude: destination.coordinate.longitude,
-                 carTypeName: carType.name,
-                 estimatedDistance: estimatedDistance,
-                 estimatedTime: estimatedTime,
-                 estimatedPrice: estimatedPrice,
-                 driverName: driverName,
-                 driverPhone: driverPhone,
-                 driverEmail: driverEmail
-             )
-             context.insert(booking)
-             
-             do {
-                 try context.save()
-                 print("💾 Ride saved successfully")
-                 navigateToConfirmation = booking
-             } catch {
-                 print("❌ Failed to save ride: \(error)")
-             }
+     // Add this new method to complete booking after payment selection
+     func completeBooking(with paymentCard: PaymentCardModel) {
+         guard let booking = pendingBooking,
+               let context = modelContext else { return }
+         
+         // Update booking with payment info
+         booking.paymentMethod = paymentCard.maskedCardNumber
+         
+         context.insert(booking)
+         
+         do {
+             try context.save()
+             print("✅ Ride booked successfully with payment: \(paymentCard.maskedCardNumber)")
+             navigateToConfirmation = booking
+             pendingBooking = nil
+             showPaymentSelection = false
+         } catch {
+             print("❌ Failed to save booking: \(error)")
          }
      }
 

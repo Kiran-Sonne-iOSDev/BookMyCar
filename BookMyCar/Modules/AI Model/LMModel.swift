@@ -9,7 +9,7 @@ import SwiftUI
 import FoundationModels
 @Observable
 class LMModel  {
-    var inputText = "Hi"
+    var inputText = ""
     var isThinking = false
     var isAwaitingResponse = false
     var session = LanguageModelSession {

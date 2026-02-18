@@ -11,6 +11,8 @@ struct RideHistoryCard: View {
     let ride: RideBookingModel
     let timeString: String
     let onToggleFavorite: () -> Void
+    let onToggleTrash: () -> Void
+    @State private var showDeleteAlert = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -26,12 +28,22 @@ struct RideHistoryCard: View {
                     .lineLimit(1)
                 Spacer()
                 Button {
-                                   onToggleFavorite()
+                                   showDeleteAlert = true  // Show alert instead of direct delete
                                } label: {
-                                   Image(systemName: ride.isFavorite ? "heart.fill" : "heart")
+                                   Image(systemName: "trash")
                                        .font(.system(size: 20))
-                                       .foregroundColor(ride.isFavorite ? .red : .gray)
+                                       .foregroundColor(.gray)
                                }
+                
+                
+                Button {
+                    onToggleFavorite()
+                } label: {
+                    Image(systemName: ride.isFavorite ? "heart.fill" : "heart")
+                        .font(.system(size: 20))
+                        .foregroundColor(ride.isFavorite ? .red : .gray)
+                }
+                
             }
             
             // Destination Location
@@ -53,10 +65,14 @@ struct RideHistoryCard: View {
                     .foregroundColor(.gray)
                 
                 Spacer()
-                
-                Text(ride.estimatedPrice)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(Color.orange)
+                HStack(spacing: 20) {
+                    Text("Paid via: \(ride.paymentMethod)")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color.gray)
+                    Text(ride.estimatedPrice)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color.green.opacity(0.4))
+                }
             }
             .padding(.top, 4)
         }
@@ -73,5 +89,13 @@ struct RideHistoryCard: View {
         )
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .alert("Delete Ride", isPresented: $showDeleteAlert) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Delete", role: .destructive) {
+                        onToggleTrash()
+                    }
+                } message: {
+                    Text("Are you sure you want to delete this ride? This action cannot be undone.")
+                }
     }
 }

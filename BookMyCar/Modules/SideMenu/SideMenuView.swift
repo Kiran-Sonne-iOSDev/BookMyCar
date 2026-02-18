@@ -12,6 +12,7 @@ struct SideMenuView: View {
     @State private var navigateToPayment = false
     @State private var navigateToFavorites = false
     @State private var navigateToSettings = false
+    @Environment(\.appStateBinding) private var appState
     
     private var currentUser: UserEntity? {
         UserSession.shared.currentUser
@@ -68,13 +69,9 @@ struct SideMenuView: View {
                                    isShowing = false
                             }
                             
-                            MenuItemView(icon: "gearshape.fill", title: "Settings") {
+                            MenuItemView(icon: "character.bubble.fill", title: "Help & Support") {
                                 navigateToSettings = true
-                                   isShowing = false
-                            }
-                            
-                            MenuItemView(icon: "questionmark.circle.fill", title: "Help") {
-                                // Handle Help tap
+                                isShowing = false
                             }
                         }
                         .padding(.top, 20)
@@ -83,8 +80,13 @@ struct SideMenuView: View {
                         
                         // Logout
                         Button(action: {
-                            UserSession.shared.logout()
-                            isShowing = false
+                            withAnimation {
+                                isShowing = false
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    UserSession.shared.logout()
+                                    appState.wrappedValue = .welcome
+                                }
+                            }
                         }) {
                             HStack {
                                 Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -159,3 +161,4 @@ struct MenuItemView: View {
         }
     }
 }
+ 

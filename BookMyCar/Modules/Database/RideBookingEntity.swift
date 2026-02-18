@@ -31,6 +31,7 @@ final class RideBookingModel: Identifiable {
     var driverEmail: String
     var rating: Int?
     var isFavorite: Bool = false
+    var paymentMethod: String = ""
     
     init(
         pickupTitle: String,
@@ -63,6 +64,7 @@ final class RideBookingModel: Identifiable {
         self.driverEmail = driverEmail
         self.bookingDate = Date()
         self.isFavorite = false
+        self.paymentMethod = "" 
         
     }
 }

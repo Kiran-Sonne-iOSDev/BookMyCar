@@ -16,7 +16,9 @@ struct HomeView: View {
     @StateObject private var presenter: HomePresenter
     @State private var showBottomSheet = true
     @State private var isSideMenuShowing = false
- 
+    @State private var dragOffset: CGFloat = 0
+    @State private var sheetHeight: SheetHeight = .half
+
     init(presenter: HomePresenter) {
         _presenter = StateObject(wrappedValue: presenter)
     }
@@ -52,18 +54,30 @@ struct HomeView: View {
             }
             .onAppear {
                 presenter.modelContext = modelContext
-                // ✅ Load user session
                 UserSession.shared.loadSession(context: modelContext)
                 presenter.loadNearbyCars()
                 
                 if presenter.navigateToConfirmation == nil {
-                       presenter.resetRideState()
-                   }
+                    presenter.resetRideState()
+                }
             }
             .navigationDestination(item: $presenter.navigateToConfirmation) { booking in
                 RideConfirmationView(
                     presenter: RideConfirmationPresenter(booking: booking)
                 )
+            }
+            .sheet(isPresented: $presenter.showPaymentSelection) {
+                if let booking = presenter.pendingBooking {
+                    PaymentSelectionView(
+                        booking: booking,
+                        onPaymentSelected: { card in
+                            presenter.completeBooking(with: card)
+                        },
+                        onNonCardPayment: { booking in
+                            presenter.completeBookingWithoutCard(booking: booking)
+                        }
+                    )
+                }
             }
         }
     }
@@ -90,157 +104,276 @@ struct HomeView: View {
         .padding(.horizontal, 20)
         .padding(.top, 50)
     }
+}
+
+// MARK: - Sheet Height Enum
+enum SheetHeight {
+    case quarter
+    case half
+    case full
+    
+    var value: CGFloat {
+        switch self {
+        case .quarter: return UIScreen.main.bounds.height * 0.25
+        case .half: return UIScreen.main.bounds.height * 0.5
+        case .full: return UIScreen.main.bounds.height * 0.85
+        }
+    }
+}
+
+// MARK: - Enhanced Bottom Sheet Extension
+extension HomeView {
     
     // MARK: - Bottom Sheet View
-    private var bottomSheetView: some View {
+    var bottomSheetView: some View {
         VStack(spacing: 0) {
-            // Drag Handle
             dragHandle
             
-            // Content
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
-                    // Location Input Section
-                    locationInputSection
+                    enhancedLocationInputSection
                     
-                    // Car Selection & Booking Section (only show when both locations selected)
                     if presenter.pickupLocation != nil && presenter.destinationLocation != nil {
                         Divider()
                             .padding(.horizontal, 20)
                         
-                        carSelectionSection
+                        enhancedCarSelectionSection
                         rideDetailsSection
-                        bookingButton
+                        enhancedBookingButton
                     }
                 }
                 .padding(.bottom, 30)
             }
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
+            .frame(maxHeight: sheetHeight.value - 60)
         }
         .frame(maxWidth: .infinity)
+        .frame(height: sheetHeight.value + dragOffset)
         .background(
             RoundedRectangle(cornerRadius: 24)
                 .fill(Color.white)
-                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -5)
+                .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: -5)
         )
+        .offset(y: max(dragOffset, -50))
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    let translation = value.translation.height
+                    dragOffset = translation
+                }
+                .onEnded { value in
+                    let translation = value.translation.height
+                    let velocity = value.predictedEndTranslation.height - translation
+                    
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                        if translation < -100 || velocity < -500 {
+                            if sheetHeight == .half {
+                                sheetHeight = .full
+                            } else if sheetHeight == .quarter {
+                                sheetHeight = .half
+                            }
+                        } else if translation > 100 || velocity > 500 {
+                            if sheetHeight == .full {
+                                sheetHeight = .half
+                            } else if sheetHeight == .half {
+                                sheetHeight = .quarter
+                            }
+                        }
+                        dragOffset = 0
+                    }
+                }
+        )
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: sheetHeight)
     }
     
-    // MARK: - Drag Handle
-    private var dragHandle: some View {
-        RoundedRectangle(cornerRadius: 3)
-            .fill(Color.gray.opacity(0.3))
-            .frame(width: 40, height: 5)
-            .padding(.top, 12)
-            .padding(.bottom, 20)
+    // MARK: - Enhanced Drag Handle
+    var dragHandle: some View {
+        VStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Color.gray.opacity(0.4))
+                .frame(width: 40, height: 5)
+                .padding(.top, 8)
+            
+            if sheetHeight != .full {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundColor(.gray.opacity(0.6))
+                .padding(.bottom, 8)
+            }
+        }
     }
     
-    // MARK: - Location Input Section
-    private var locationInputSection: some View {
+    // MARK: - Enhanced Location Input Section
+    var enhancedLocationInputSection: some View {
         VStack(spacing: 16) {
             // Pickup Field
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 12) {
-                    Image(systemName: "circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.green)
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 10, height: 10)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.green.opacity(0.3), lineWidth: 4)
+                        )
                     
                     TextField("Pickup location", text: $presenter.pickupQuery)
-                        .font(.system(size: 16))
+                        .font(.system(size: 16, weight: .medium))
+                    
+                    if !presenter.pickupQuery.isEmpty {
+                        Button {
+                            presenter.pickupQuery = ""
+                            presenter.pickupLocation = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray.opacity(0.5))
+                        }
+                    }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.gray.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.green.opacity(0.2), lineWidth: 1)
+                        )
+                )
                 
-                // Pickup Suggestions
                 if !presenter.pickupSuggestions.isEmpty {
-                    suggestionsList(
+                    enhancedSuggestionsList(
                         suggestions: presenter.pickupSuggestions,
                         onSelect: { item in
                             presenter.selectPickup(item)
                         }
                     )
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             
             // Destination Field
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 12) {
-                    Image(systemName: "mappin.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.red)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.red)
+                        .frame(width: 10, height: 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 4)
+                        )
                     
-                    TextField("Destination Location", text: $presenter.destinationQuery)
-                        .font(.system(size: 16))
+                    TextField("Where to?", text: $presenter.destinationQuery)
+                        .font(.system(size: 16, weight: .medium))
+                    
+                    if !presenter.destinationQuery.isEmpty {
+                        Button {
+                            presenter.destinationQuery = ""
+                            presenter.destinationLocation = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray.opacity(0.5))
+                        }
+                    }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.gray.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.red.opacity(0.2), lineWidth: 1)
+                        )
+                )
                 
-                // Destination Suggestions
                 if !presenter.destinationSuggestions.isEmpty {
-                    suggestionsList(
+                    enhancedSuggestionsList(
                         suggestions: presenter.destinationSuggestions,
                         onSelect: { item in
                             presenter.selectDestination(item)
                         }
                     )
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
         }
         .padding(.horizontal, 20)
     }
     
-    // MARK: - Suggestions List
-    private func suggestionsList(suggestions: [MKMapItem], onSelect: @escaping (MKMapItem) -> Void) -> some View {
+    // MARK: - Enhanced Suggestions List
+    func enhancedSuggestionsList(suggestions: [MKMapItem], onSelect: @escaping (MKMapItem) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(suggestions.indices, id: \.self) { index in
                 let item = suggestions[index]
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.easeOut(duration: 0.2)) {
                         onSelect(item)
                     }
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.name ?? "Unknown")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.black)
+                    HStack(spacing: 12) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.gray.opacity(0.5))
                         
-                        if let subtitle = item.placemark.title, !subtitle.isEmpty {
-                            Text(subtitle)
-                                .font(.system(size: 13))
-                                .foregroundColor(.gray)
-                                .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.name ?? "Unknown")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(.black)
+                            
+                            if let subtitle = item.placemark.title, !subtitle.isEmpty {
+                                Text(subtitle)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.gray)
+                                    .lineLimit(1)
+                            }
                         }
+                        
+                        Spacer()
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 12)
                     .padding(.horizontal, 16)
+                    .background(Color.white)
                 }
                 
                 if index != suggestions.count - 1 {
                     Divider()
-                        .padding(.leading, 16)
+                        .padding(.leading, 48)
                 }
             }
         }
         .background(Color.white)
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+        .shadow(color: Color.black.opacity(0.1), radius: 15, x: 0, y: 5)
         .padding(.top, 4)
     }
     
-    // MARK: - Car Selection Section
-    private var carSelectionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Select Car Type")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.black)
-                .padding(.horizontal, 20)
+    // MARK: - Enhanced Car Selection Section
+    var enhancedCarSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Choose a ride")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.black)
+                
+                Spacer()
+                
+                if presenter.pickupLocation != nil && presenter.destinationLocation != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 12))
+                        Text(presenter.estimatedTime)
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundColor(.gray)
+                }
+            }
+            .padding(.horizontal, 20)
             
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     ForEach(presenter.carTypes) { carType in
-                        CarTypeCard(
+                        EnhancedCarTypeCard(
                             carType: carType,
                             isSelected: presenter.selectedCarType?.id == carType.id
                         ) {
@@ -255,8 +388,8 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Ride Details Section
-    private var rideDetailsSection: some View {
+    // MARK: - Ride Details Section (Keep Original)
+    var rideDetailsSection: some View {
         VStack(spacing: 16) {
             HStack(spacing: 16) {
                 RideDetailItem(
@@ -281,122 +414,36 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Booking Button
-    private var bookingButton: some View {
+    // MARK: - Enhanced Booking Button
+    var enhancedBookingButton: some View {
         Button(action: {
             withAnimation {
                 presenter.bookRide()
                 print("Total rides:", rides.count)
-
             }
         }) {
             HStack(spacing: 12) {
-                Image(systemName: "car.fill")
-                    .font(.system(size: 18, weight: .semibold))
-
-                Text("Book Ride")
+                Text("Confirm")
                     .font(.system(size: 18, weight: .bold))
- 
+                
+                Text(presenter.selectedCarType?.name ?? "Ride")
+                    .font(.system(size: 18, weight: .semibold))
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(
                 LinearGradient(
-                    colors: [Color.blue, Color.indigo],
+                    colors: [Color.black, Color.gray.opacity(0.8)],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
             )
             .clipShape(Capsule())
-            .shadow(color: Color.blue.opacity(0.4), radius: 10, x: 0, y: 6)
+            .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
-    }
-}
-
-// MARK: - Car Type Card
-struct CarTypeCard: View {
-    let carType: CarTypeEntity
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 12) {
-                // Car Icon
-                Image(systemName: carType.icon)
-                    .font(.system(size: 32))
-                    .foregroundColor(isSelected ? .black : .gray)
-                
-                // Car Name
-                Text(carType.name)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(isSelected ? .black : .gray)
-                
-                // Price
-                Text(carType.priceRange)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isSelected ? Color(hex: "FFD700") : .gray)
-                
-                // Capacity
-                HStack(spacing: 4) {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 10))
-                    Text("\(carType.capacity)")
-                        .font(.system(size: 10, weight: .medium))
-                }
-                .foregroundColor(isSelected ? .black.opacity(0.7) : .gray)
-            }
-            .frame(width: 100)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? Color(hex: "FFF9E6") : Color.gray.opacity(0.1))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? Color(hex: "FFD700") : Color.clear, lineWidth: 2)
-            )
-        }
-        .buttonStyle(ScaleButtonStyle())
-    }
-}
-
-// MARK: - Scale Button Style
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
-// MARK: - Ride Detail Item
-struct RideDetailItem: View {
-    let icon: String
-    let title: String
-    let value: String
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundColor(Color(hex: "0066FF"))
-            
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundColor(.gray)
-            
-            Text(value)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.black)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
     }
 }
 
