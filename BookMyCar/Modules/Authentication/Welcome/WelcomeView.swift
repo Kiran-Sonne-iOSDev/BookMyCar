@@ -18,8 +18,8 @@ struct WelcomeView: View {
                 // Background Gradient
                 LinearGradient(
                     colors: [
-                        Color("FFD700"),
-                        Color("FFA500")
+                        Color(hex: "FFD700"),
+                        Color(hex: "FFA500")
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
